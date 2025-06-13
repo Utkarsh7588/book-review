@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const Book = require('../models/Book');
 const Review = require('../models/Review');
 const auth = require('../middleware/auth');
+const { cacheMiddleware, redisClient } = require('../config/redis');
 
 // Input validation rules
 const validateBook = [
@@ -24,14 +25,18 @@ router.post('/', auth, validateBook, async (req, res) => {
 
     const book = new Book(req.body);
     await book.save();
+    
+    // Invalidate cache for book listings
+    await redisClient.del('cache:/api/books');
+    
     res.status(201).json(book);
   } catch (error) {
     res.status(500).json({ error: 'Error creating book' });
   }
 });
 
-// Get books with filters
-router.get('/', auth, async (req, res) => {
+// Get books with filters - with caching
+router.get('/', auth, cacheMiddleware(300), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -59,8 +64,8 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Search for books
-router.get('/search', auth, async (req, res) => {
+// Search for books - with caching
+router.get('/search', auth, cacheMiddleware(300), async (req, res) => {
   try {
     const { q } = req.query;
     if (!q) {
@@ -91,8 +96,8 @@ router.get('/search', auth, async (req, res) => {
   }
 });
 
-// Get a single book with its reviews
-router.get('/:id', async (req, res) => {
+// Get a single book with its reviews - with caching
+router.get('/:id', cacheMiddleware(300), async (req, res) => {
   try {
     const book = await Book.findById(req.params.id);
     if (!book) {
@@ -156,6 +161,10 @@ router.post('/:id/reviews', auth, [
     });
 
     await review.save();
+    
+    // Invalidate cache for this book's details
+    await redisClient.del(`cache:/api/books/${req.params.id}`);
+    
     res.status(201).json(review);
   } catch (error) {
     res.status(500).json({ error: 'Error adding review' });

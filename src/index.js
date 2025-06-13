@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
+const { rateLimiter } = require('./config/redis');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -15,6 +16,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Apply rate limiting to all routes
+app.use(rateLimiter(100, 60)); // 100 requests per minute
 
 // Routes
 app.use('/api/auth', authRoutes);

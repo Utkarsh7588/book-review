@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { redisClient } = require('../config/redis');
 
 const auth = async (req, res, next) => {
   try {
@@ -7,6 +8,18 @@ const auth = async (req, res, next) => {
     
     if (!token) {
       throw new Error();
+    }
+
+    // Check if token is blacklisted
+    const isBlacklisted = await redisClient.get(`blacklist:${token}`);
+    if (isBlacklisted) {
+      throw new Error('Token has been invalidated');
+    }
+
+    // Check if token exists in Redis
+    const isValidToken = await redisClient.get(`token:${token}`);
+    if (!isValidToken) {
+      throw new Error('Token is not valid');
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
