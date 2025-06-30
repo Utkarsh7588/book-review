@@ -14,7 +14,7 @@ A RESTful API for a Book Review system built with Node.js, Express, and MongoDB.
 
 - Node.js (v14 or higher)
 - MongoDB
-- **Redis**
+- Redis
 - npm or yarn
 
 ## Setup
